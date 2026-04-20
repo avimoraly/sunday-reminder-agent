@@ -2,7 +2,8 @@ name: Sunday drive agent
 
 on:
   schedule:
-    - cron: '0 15 * * 0'  # every Sunday at 15:00 UTC = 17:00 Israel time
+    - cron: '0 15 * * 0'
+  workflow_dispatch:
 
 jobs:
   run-agent:
@@ -14,6 +15,6 @@ jobs:
       - name: Run agent
         run: node index.js
         env:
-          GOOGLE_API_KEY:     ${{ secrets.GOOGLE_API_KEY }}
-          TELEGRAM_TOKEN:     ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
