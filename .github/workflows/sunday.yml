@@ -1,0 +1,19 @@
+name: Sunday drive agent
+
+on:
+  schedule:
+    - cron: '0 15 * * 0'  # every Sunday at 15:00 UTC = 17:00 Israel time
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run agent
+        run: node index.js
+        env:
+          GOOGLE_API_KEY:     ${{ secrets.GOOGLE_API_KEY }}
+          TELEGRAM_TOKEN:     ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
