@@ -1,3 +1,10 @@
 {
-  "history": []
+  "history": [
+    {
+      "date": "2026-04-21",
+      "drive_minutes": 21,
+      "left_at": "18:24",
+      "buffer_was_enough": true
+    }
+  ]
 }
