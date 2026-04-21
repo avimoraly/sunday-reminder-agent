@@ -1,8 +1,19 @@
 import Anthropic from "@anthropic-ai/sdk";
+import fs from "fs";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ── Tool definitions (the "menu" we give Claude) ──────────────────
+// ── Load memory ───────────────────────────────────────────────────
+const memory = JSON.parse(fs.readFileSync("memory.json", "utf8"));
+const historyText = memory.history.length === 0
+  ? "No history yet — this is the first run."
+  : memory.history.map(h =>
+      `${h.date}: drive was ${h.drive_minutes} min, ` +
+      `left at ${h.left_at}, ` +
+      `buffer was ${h.buffer_was_enough ? "enough" : "NOT enough"}`
+    ).join("\n");
+
+// ── Tools ─────────────────────────────────────────────────────────
 const tools = [
   {
     name: "get_drive_time",
@@ -10,8 +21,8 @@ const tools = [
     input_schema: {
       type: "object",
       properties: {
-        origin:      { type: "string", description: "Starting address" },
-        destination: { type: "string", description: "Destination address" }
+        origin:      { type: "string" },
+        destination: { type: "string" }
       },
       required: ["origin", "destination"]
     }
@@ -22,14 +33,27 @@ const tools = [
     input_schema: {
       type: "object",
       properties: {
-        message: { type: "string", description: "The message to send" }
+        message: { type: "string" }
       },
       required: ["message"]
+    }
+  },
+  {
+    name: "save_to_memory",
+    description: "Saves this run's data to memory for future reference.",
+    input_schema: {
+      type: "object",
+      properties: {
+        drive_minutes:    { type: "number",  description: "How long the drive took today" },
+        left_at:          { type: "string",  description: "What time Avi should leave e.g. 18:24" },
+        buffer_was_enough:{ type: "boolean", description: "Was the 15 min buffer enough?" }
+      },
+      required: ["drive_minutes", "left_at", "buffer_was_enough"]
     }
   }
 ];
 
-// ── Real tool implementations ─────────────────────────────────────
+// ── Tool implementations ──────────────────────────────────────────
 async function get_drive_time({ origin, destination }) {
   const url = `https://maps.googleapis.com/maps/api/distancematrix/json`
     + `?origins=${encodeURIComponent(origin)}`
@@ -56,7 +80,19 @@ async function send_telegram({ message }) {
   return { sent: true };
 }
 
-// ── The agent loop ────────────────────────────────────────────────
+function save_to_memory({ drive_minutes, left_at, buffer_was_enough }) {
+  const today = new Date().toISOString().split("T")[0];
+  memory.history.push({ date: today, drive_minutes, left_at, buffer_was_enough });
+
+  // Keep only last 10 weeks
+  if (memory.history.length > 10) memory.history.shift();
+
+  fs.writeFileSync("memory.json", JSON.stringify(memory, null, 2));
+  console.log("Memory saved!");
+  return { saved: true };
+}
+
+// ── Agent loop ────────────────────────────────────────────────────
 async function runAgent() {
   const messages = [
     {
@@ -65,14 +101,15 @@ async function runAgent() {
         "You are helping Avi, a dance teacher in Israel. " +
         "Every Sunday he drives from HaPnina 2, Ra'anana to Saadia Gaon 24, Tel Aviv. " +
         "He must arrive by 19:00. He likes a 15 minute buffer. " +
-        "Check the current drive time, decide when he should leave, " +
-        "and send him a friendly message on Telegram. " +
-        "If traffic is unusually bad (over 60 min), warn him clearly. " +
-        "If traffic is great (under 30 min), let him know he has extra time."
+        "\n\nHere is the history of recent Sundays:\n" + historyText +
+        "\n\nYour job today: " +
+        "1. Check the current drive time. " +
+        "2. Look at the history — has the buffer been enough? Adjust your advice if needed. " +
+        "3. Send Avi a friendly Telegram message with your recommendation. " +
+        "4. Save this run to memory."
     }
   ];
 
-  // Agent loop — keeps going until Claude is done
   while (true) {
     const response = await client.messages.create({
       model:      "claude-sonnet-4-6",
@@ -80,17 +117,15 @@ async function runAgent() {
       tools,
       messages
     });
-    
-    // Add Claude's response to the conversation
+
+    console.log("Claude says:", JSON.stringify(response.content, null, 2));
     messages.push({ role: "assistant", content: response.content });
 
-    // If Claude is done — stop the loop
     if (response.stop_reason === "end_turn") {
       console.log("Agent finished.");
       break;
     }
 
-    // If Claude wants to use a tool — run it
     if (response.stop_reason === "tool_use") {
       const toolResults = [];
 
@@ -99,10 +134,10 @@ async function runAgent() {
 
         console.log(`Claude is calling: ${block.name}`);
 
-        // Run the actual tool
         let result;
-        if (block.name === "get_drive_time") result = await get_drive_time(block.input);
-        if (block.name === "send_telegram")  result = await send_telegram(block.input);
+        if (block.name === "get_drive_time")  result = await get_drive_time(block.input);
+        if (block.name === "send_telegram")   result = await send_telegram(block.input);
+        if (block.name === "save_to_memory")  result = save_to_memory(block.input);
 
         toolResults.push({
           type:        "tool_result",
@@ -111,7 +146,6 @@ async function runAgent() {
         });
       }
 
-      // Send results back to Claude so it can continue thinking
       messages.push({ role: "user", content: toolResults });
     }
   }
