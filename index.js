@@ -80,8 +80,6 @@ async function runAgent() {
       tools,
       messages
     });
-
-    console.log("Claude says:", JSON.stringify(response.content, null, 2));
     
     // Add Claude's response to the conversation
     messages.push({ role: "assistant", content: response.content });
