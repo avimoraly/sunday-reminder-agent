@@ -53,6 +53,12 @@
       "drive_minutes": 25,
       "left_at": "18:20",
       "buffer_was_enough": true
+    },
+    {
+      "date": "2026-06-07",
+      "drive_minutes": 30,
+      "left_at": "18:15",
+      "buffer_was_enough": true
     }
   ]
 }
