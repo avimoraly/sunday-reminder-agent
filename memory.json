@@ -2,12 +2,6 @@
   "history": [
     {
       "date": "2026-04-26",
-      "drive_minutes": 28,
-      "left_at": "18:17",
-      "buffer_was_enough": true
-    },
-    {
-      "date": "2026-04-26",
       "drive_minutes": 29,
       "left_at": "18:16",
       "buffer_was_enough": true
@@ -58,6 +52,12 @@
       "date": "2026-06-14",
       "drive_minutes": 31,
       "left_at": "18:14",
+      "buffer_was_enough": true
+    },
+    {
+      "date": "2026-06-21",
+      "drive_minutes": 29,
+      "left_at": "18:16",
       "buffer_was_enough": true
     }
   ]
